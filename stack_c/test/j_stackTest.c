@@ -12,11 +12,11 @@ void testPushAndPopString()
     stack_push(stack, expectedValue);
     void* actualValue = stack_pop(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_PTR_NOT_NULL_FATAL(actualValue);
     CU_ASSERT_STRING_EQUAL(actualValue, expectedValue);
-
-    stack_free(stack);
 }
 
 void testPushAndPopMultipleIntegers()
@@ -32,13 +32,13 @@ void testPushAndPopMultipleIntegers()
     actualValues[1] = stack_pop(stack);
     actualValues[0] = stack_pop(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_PTR_NOT_NULL_FATAL(actualValues[0]);
     CU_ASSERT_PTR_NOT_NULL_FATAL(actualValues[1]);
     CU_ASSERT_EQUAL(*actualValues[0], expectedValues[0]);
     CU_ASSERT_EQUAL(*actualValues[1], expectedValues[1]);
-
-    stack_free(stack);
 }
 
 void testPushAndPopDifferentTypes()
@@ -54,13 +54,13 @@ void testPushAndPopDifferentTypes()
     float *actualSecondValue = stack_pop(stack);
     const char *actualFirstValue = stack_pop(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_PTR_NOT_NULL_FATAL(actualFirstValue);
     CU_ASSERT_PTR_NOT_NULL_FATAL(actualSecondValue);
     CU_ASSERT_STRING_EQUAL(actualFirstValue, expectedFirstValue);
     CU_ASSERT_DOUBLE_EQUAL(*actualSecondValue, expectedSecondValue, 0.001);
-
-    stack_free(stack);
 }
 
 void testPushAndPopNull()
@@ -72,10 +72,10 @@ void testPushAndPopNull()
     stack_push(stack, NULL);
     void *actualValue = stack_pop(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_PTR_NULL(actualValue);
-
-    stack_free(stack);
 }
 
 void testResusesSameSlotAfterPop() {
@@ -88,10 +88,10 @@ void testResusesSameSlotAfterPop() {
     stack_pop(stack);
     int actualPosition = stack_getPosition(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_EQUAL(actualPosition, expectedPosition);
-
-    stack_free(stack);
 }
 
 void testReturnsNullWhenPopingEmptyStack()
@@ -102,10 +102,10 @@ void testReturnsNullWhenPopingEmptyStack()
     // ACT
     void *actualValue = stack_pop(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_PTR_NULL(actualValue);
-
-    stack_free(stack);
 }
 
 void testReturnsNullIfGivenNonPositiveCapacity()
@@ -130,10 +130,10 @@ void testPushingIntoFullStackIncreasesSize()
     stack_push(stack, NULL);
     int currentCapacity = stack_getCapacity(stack);
 
+    stack_free(stack);
+
     // ASSERT
     CU_ASSERT_TRUE(currentCapacity > startCapacity);
-
-    stack_free(stack);
 }
 
 void testPushToNullStackReturnsError()
