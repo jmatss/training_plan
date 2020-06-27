@@ -15,12 +15,14 @@ class GildedRose {
     public void updateQuality() {
     //public void newUpdateQuality() {
         for (Item currentItem : items) {
-            int decreaseAmount = (currentItem.sellIn > 0) ? 1 : 2;
+            // As default, the `quality` changes with 1 when `sellIn` is
+            // positive and with 2 when `sellIn` is negative or zero.
+            int qualityChange = (currentItem.sellIn > 0) ? 1 : 2;
 
             switch (currentItem.name) {
                 case AGED_BRIE:
                     // Increase instead of decrease.
-                    currentItem.quality += decreaseAmount;
+                    currentItem.quality += qualityChange;
                     break;
 
                 case BACKSTAGE:
@@ -39,11 +41,12 @@ class GildedRose {
                     break;
 
                 case CONJURED:
-                    currentItem.quality -= decreaseAmount * 2;
+                    // Decreases twice as fast as "normal items".
+                    currentItem.quality -= qualityChange * 2;
                     break;
 
                 default:
-                    currentItem.quality -= decreaseAmount;
+                    currentItem.quality -= qualityChange;
             }
 
             // `sellIn` decreases for every item except `Sulfuras`.
