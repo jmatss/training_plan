@@ -28,7 +28,7 @@ public class TennisGame1 implements TennisGame {
     public String getScore() {
         String score;
 
-        int maxScore = Integer.max(this.player1Score, this.player2Score);
+        int highestScore = Integer.max(this.player1Score, this.player2Score);
         int diffScore = Math.abs(this.player1Score - this.player2Score);
 
         if (this.player1Score == this.player2Score) {
@@ -41,7 +41,7 @@ public class TennisGame1 implements TennisGame {
                 score = this.scoreToString(this.player1Score) + "-All";
             }
 
-        } else if (maxScore >= 4) {
+        } else if (highestScore >= 4) {
 
             // Since the person with the highest score have reached a score
             // above or equals 4, the person will either have the "advantage"
@@ -127,7 +127,10 @@ public class TennisGame1 implements TennisGame {
             case 1:  return FIFTEEN;
             case 2:  return THIRTY;
             case 3:  return FORTY;
-            default: return null;
+            default: 
+                String msg = "Invalid score argument \"" + score + "\" given.";
+                msg += " The score argument needs to be 0 through 3";
+            throw new IllegalArgumentException(msg);
         }
     }
 }
