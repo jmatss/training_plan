@@ -46,7 +46,7 @@ public class TennisGame1 implements TennisGame {
             // Since the person with the highest score have reached a score
             // above or equals 4, the person will either have the "advantage"
             // if the score is less that two, otherwise it will have won.
-            String leader = (this.player1Score > this.player2Score) ? "player1" : "player2" ;            
+            String leader = (this.player1Score > this.player2Score) ? "player1" : "player2";            
             if (diffScore >= 2) {
                 score = "Win for " + leader;
             } else {
@@ -55,8 +55,8 @@ public class TennisGame1 implements TennisGame {
 
         } else {
 
-            // Both players have a score less that 4 and doesn't have the same
-            // score. The score just just be printed out "as is".
+            // Both players have a score less than 4 and doesn't have the same
+            // score. The score should just be printed out "as is".
             score = this.scoreToString(this.player1Score) + "-" + this.scoreToString(this.player2Score);
 
         }
