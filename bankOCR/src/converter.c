@@ -5,8 +5,10 @@
 #include <string.h>
 #include "converter.h"
 
-static uint64_t chars_to_hash(char digit[DIGIT_SIZE]);
+static uint64_t pipes_to_hash(char digit[DIGIT_SIZE]);
 static uint8_t lookup_digit(uint64_t hash);
+static uint64_t lookup_hash(uint8_t digit);
+static int lookup_corrections(uint64_t hash, uint8_t *corrections, size_t *size);
 
 /**
  *  _     _  _     _  _  _  _  _ 
@@ -25,25 +27,6 @@ static uint8_t lookup_digit(uint64_t hash);
  *   8 => x_x |_| |_|
  *   9 => x_x |_| x_|
  */
-
-/**
- * Lookup for possible correction digits with only a single removed/added line.
- * Ex. a zero could be a eight that just have lost its middle line.
- */
-/* TODO: User Story 4
-const static uint8_t *Abc[10] = {
-    {8},       // 0
-    {7},       // 1
-    NULL,      // 2
-    NULL,      // 3
-    NULL,      // 4
-    {6, 9},    // 5
-    {5, 8},    // 6
-    {1},       // 7
-    {0, 6, 9}, // 8
-    {5, 8}     // 9
-};
-*/
 
 /**
  * Given the string containing the account number in "pipe" format, converts it
@@ -68,18 +51,25 @@ const char *convert(const char *account_number[ROWS], uint8_t result_digits[DIGI
         }
     }
 
-    char digits[9][DIGIT_SIZE];
+    char pipes[DIGITS_LEN][DIGIT_SIZE];
 
+    // "Groups" the pipes that are currently stored in three rows into the pipes
+    // belonging to a specific digit.
+    // Example (should actually be 9 digits), calling this function with:
+    //                                     ROW
+    //   _  _                            0  1  2
+    //  | ||_|       =>     pipes[0] = " _ | ||_|"  (all pipes in the zero laid out in a row)
+    //  |_||_|              pipes[1] = " _ |_||_|"  (all pipes in the eight)
     for (size_t i = 0; i < ACCOUNT_NUMBER_LEN; i++)
     {
         size_t num_index = (i / 3) % 9;
-        size_t num_digit = i % 3 + (3 * (i / 27));
-        digits[num_index][num_digit] = account_number[i / COLS][i % COLS];
+        size_t num_pipe_index = i % 3 + (3 * (i / 27));
+        pipes[num_index][num_pipe_index] = account_number[i / COLS][i % COLS];
     }
 
     for (size_t i = 0; i < DIGITS_LEN; i++)
     {
-        uint64_t hash = chars_to_hash(digits[i]);
+        uint64_t hash = pipes_to_hash(pipes[i]);
         uint32_t digit = lookup_digit(hash);
         result_digits[i] = digit;
     }
@@ -177,12 +167,77 @@ const char *to_file_format(uint8_t result_digits[DIGITS_LEN])
     return result;
 }
 
-/* TODO: User Story 4
-uint8_t **correct(uint8_t digits[DIGITS_LEN])
+// TODO: Doesn't give the correct results.
+/**
+ * Given a account number `digits`, returns all possible valid account numbers
+ * that can be created by changing a single pipe in the input account number.
+ * 
+ * The result will be a heap allocation, so the caller needs to make sure to
+ * free it. The dimension of the "array" in the result will be stored in the
+ * argument `result_dim` so that the caller can see the result size. 
+ */
+uint8_t *correct(uint8_t digits[DIGITS_LEN], size_t *result_dim)
 {
+    if (NULL == digits || NULL == result_dim)
+    {
+        return NULL;
+    }
 
+    // Will contain the "corrected" account numbers if any is found.
+    // Will be a heap pointer to imaginary arrays of results.
+    uint8_t *result_digits = malloc(0);
+    *result_dim = 0;
+
+    // Contains digits that are currently being tested for validity i.e. a copy
+    // of the `digits` array but with a single changed/"corrected" digit.
+    uint8_t test_digits[DIGITS_LEN];
+
+    // Will contain corrections for a single digit.
+    uint8_t corrections[3] = {0};
+    size_t corrections_dim = 0;
+
+    // Iterates through all digits of the given input account number.
+    for (size_t i = 0; i < DIGITS_LEN; i++)
+    {
+        // Returns != 0 on failure.
+        uint64_t hash = lookup_hash(digits[i]);
+        if (0 != lookup_corrections(hash, corrections, &corrections_dim))
+        {
+            return NULL;
+        }
+
+        memcpy(test_digits, digits, DIGITS_LEN);
+
+        // Iterate through all corrections for this digit and test to see
+        // if the correction is valid.
+        for (int j = 0; j < corrections_dim; j++)
+        {
+            test_digits[i] = corrections[j];
+
+            if (validate_checksum(test_digits))
+            {
+                // Add space to the results and copy the current `test_digits`
+                // into the results (since it is a valid correction).
+                result_digits = realloc(result_digits, (*result_dim + 1) * DIGITS_LEN);
+                memcpy(result_digits + (*result_dim * DIGITS_LEN), test_digits, DIGITS_LEN);
+                (*result_dim)++;
+            }
+        }
+    }
+
+    // If corrections are found, return them. Otherwise, make sure to free the
+    // allocated `result_digits`. Might have been initialized, it is UB, but
+    // always safe to call free even if it is NULL.
+    if (0 < *result_dim)
+    {
+        return result_digits;
+    }
+    else
+    {
+        free(result_digits);
+        return NULL;
+    }
 }
-*/
 
 /**
  * Since there are no built in hashmap in C, this function is used to simulate
@@ -194,7 +249,7 @@ uint8_t **correct(uint8_t digits[DIGITS_LEN])
  * 
  * This hash will then be used to lookup what digit theses characters represents.
  */
-static uint64_t chars_to_hash(char digit[DIGIT_SIZE])
+static uint64_t pipes_to_hash(char digit[DIGIT_SIZE])
 {
     uint64_t hash = 0;
 
@@ -237,4 +292,110 @@ static uint8_t lookup_digit(uint64_t hash)
     default:
         return UINT8_MAX;
     }
+}
+
+/**
+ * Given a digit, returns the hash (reverse of "lookup_digit").
+ */
+static uint64_t lookup_hash(uint8_t digit)
+{
+    switch (digit)
+    {
+    case 0:
+        return 0x20be83e20f9f2ffc;
+    case 1:
+        return 0x204081020f88107c;
+    case 2:
+        return 0x20be8105ff9f2fa0;
+    case 3:
+        return 0x20be8105ff882ffc;
+    case 4:
+        return 0x204083e5ff88107c;
+    case 5:
+        return 0x20be83e5f4082ffc;
+    case 6:
+        return 0x20be83e5f41f2ffc;
+    case 7:
+        return 0x20be81020f88107c;
+    case 8:
+        return 0x20be83e5ff9f2ffc;
+    case 9:
+        return 0x20be83e5ff882ffc;
+    default:
+        return 0;
+    }
+}
+
+/**
+ * Given a "hash" of the characters, returns the possible correction numbers i.e.
+ * numbers that have a change of exactly one "pipe".
+ * 
+ * The result will be inserted into the given `corrections` parameter. Since the
+ * max amount of corrections are 3 numbers, the given `corrections` needs to have
+ * space for atleast three digits.
+ * The size/dimension of the result corrections will be set in `corrections_dim`.
+ * 
+ * The returned int indicates if something has gone wronng. It will be set to 0
+ * for success and any other number for failures.
+ * 
+ * 0 => 8
+ * 1 => 7
+ * 2, 3, 4 => null
+ * 5 => 6, 9
+ * 6, 9 => 5, 8
+ * 7 => 1
+ * 8 => 0, 6, 9
+ */
+static int lookup_corrections(uint64_t hash, uint8_t corrections[3], size_t *corrections_dim)
+{
+    if (NULL == corrections || NULL == corrections_dim)
+    {
+        return 1;
+    }
+
+    int resultCode = 0;
+
+    switch (hash)
+    {
+    case 0x20be83e20f9f2ffc: // 0
+        corrections[0] = 8;
+        *corrections_dim = 1;
+        break;
+    case 0x204081020f88107c: // 1
+        corrections[0] = 7;
+        *corrections_dim = 1;
+        break;
+    case 0x20be8105ff9f2fa0: // 2
+    case 0x20be8105ff882ffc: // 3
+    case 0x204083e5ff88107c: // 4
+        *corrections_dim = 0;
+        break;
+    case 0x20be83e5f4082ffc: // 5
+        corrections[0] = 6;
+        corrections[1] = 9;
+        *corrections_dim = 2;
+        break;
+    case 0x20be83e5f41f2ffc: // 6
+    case 0x20be83e5ff882ffc: // 9
+        corrections[0] = 5;
+        corrections[1] = 8;
+        *corrections_dim = 2;
+        break;
+    case 0x20be81020f88107c: // 7
+        corrections[0] = 1;
+        *corrections_dim = 1;
+        break;
+    case 0x20be83e5ff9f2ffc: // 8
+        corrections[0] = 0;
+        corrections[1] = 6;
+        corrections[2] = 9;
+        *corrections_dim = 3;
+        break;
+    default:
+        resultCode = 1;
+        *corrections_dim = 0;
+        break;
+    }
+
+    return resultCode;
 }

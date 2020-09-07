@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "CU_main.h"
 #include "CUnit/Basic.h"
 #include "converter.h"
@@ -12,9 +13,12 @@ static void test_convert_null_returns_error_msg(void);
 static void test_validate_checksum_correctly(void);
 static void test_validate_checksum_returns_false_for_invalid_account_number(void);
 static void test_validate_checksum_returns_false_for_invalid_digit_in_account_number(void);
-static void test_to_file_format_formats_valid_account_number_correctly();
-static void test_to_file_format_adds_ERR_for_invalid_account_number();
-static void test_to_file_format_adds_ILL_and_questionmark_for_illegal_number();
+static void test_to_file_format_formats_valid_account_number_correctly(void);
+static void test_to_file_format_adds_ERR_for_invalid_account_number(void);
+static void test_to_file_format_adds_ILL_and_questionmark_for_illegal_number(void);
+static void test_correct_returns_null_if_any_arg_is_null(void);
+static void test_correct_111111111_to_7111111111(void);
+static void test_correct_200800000_correctly(void);
 
 TEST_TABLE_START
 TEST_TABLE_ENTRY(test_convert_zero_account_number)
@@ -28,6 +32,9 @@ TEST_TABLE_ENTRY(test_validate_checksum_returns_false_for_invalid_digit_in_accou
 TEST_TABLE_ENTRY(test_to_file_format_formats_valid_account_number_correctly)
 TEST_TABLE_ENTRY(test_to_file_format_adds_ERR_for_invalid_account_number)
 TEST_TABLE_ENTRY(test_to_file_format_adds_ILL_and_questionmark_for_illegal_number)
+TEST_TABLE_ENTRY(test_correct_returns_null_if_any_arg_is_null)
+TEST_TABLE_ENTRY(test_correct_111111111_to_7111111111)
+TEST_TABLE_ENTRY(test_correct_200800000_correctly)
 TEST_TABLE_END
 
 INIT_TEST_SUITE("bankOCR test", NULL, NULL)
@@ -180,4 +187,50 @@ static void test_to_file_format_adds_ILL_and_questionmark_for_illegal_number()
 
     // ASSERT
     CU_ASSERT_STRING_EQUAL(actual_result, expected_result);
+}
+
+static void test_correct_returns_null_if_any_arg_is_null()
+{
+    // ARRANGE
+    uint8_t account_number[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+    size_t result_dim = 0;
+
+    // ACT & ASSERT
+    CU_ASSERT_PTR_NULL(correct(account_number, NULL));
+    CU_ASSERT_PTR_NULL(correct(NULL, &result_dim));
+}
+
+static void test_correct_111111111_to_7111111111()
+{
+    // ARRANGE
+    uint8_t expected_corrected_account_number[9] = {7, 1, 1, 1, 1, 1, 1, 1, 1};
+    uint8_t invalid_account_number[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+    size_t result_dim = 0;
+
+    // ACT
+    uint8_t *actual_corrected_account_numbers = correct(invalid_account_number, &result_dim);
+
+    // ASSERT
+    CU_ASSERT_EQUAL(result_dim, 1);
+    CU_ASSERT_EQUAL(0, memcmp(actual_corrected_account_numbers, expected_corrected_account_number, 9));
+
+    free(actual_corrected_account_numbers);
+}
+
+// TODO: Make this pass?
+static void test_correct_200800000_correctly()
+{
+    // ARRANGE
+    //uint8_t expected_corrected_account_number[9] = {7, 1, 1, 1, 1, 1, 1, 1, 1};
+    uint8_t invalid_account_number[9] = {2, 0, 0, 9, 0, 0, 0, 0, 0};
+    size_t result_dim = 0;
+
+    // ACT
+    uint8_t *actual_corrected_account_numbers = correct(invalid_account_number, &result_dim);
+
+    // ASSERT
+    CU_ASSERT_EQUAL(result_dim, 1);
+    // CU_ASSERT_EQUAL(0, memcmp(actual_corrected_account_numbers, expected_corrected_account_number, 9));
+
+    free(actual_corrected_account_numbers);
 }
